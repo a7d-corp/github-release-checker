@@ -1,0 +1,20 @@
+# Maintainer: Simon Weald <simon[at]simonweald[dot]com>
+
+pkgname=github-release-checker-bin
+_srcname=github-release-checker
+pkgdesc="A command line tool to check the release status of multiple GitHub repositories"
+pkgver=0.1.1
+pkgrel=1
+provides=('github-release-checker')
+arch=('x86_64')
+url="https://github.com/a7d-corp/${_srcname}"
+license=('apache')
+source=("${_srcname}-v${pkgver}.tar.gz::${url}/releases/download/v${pkgver}/${_srcname}-v${pkgver}-linux-amd64.tar.gz")
+sha256sums=('e1fa0493793d1b7098ce41118d54c88c53ef12296864bb420c18c5ff2a8713d6')
+
+package() {
+    cd ${srcdir}
+    tar -xzf ${_srcname}-v${pkgver}.tar.gz
+    install -Dm755 "${srcdir}/${_srcname}" "${pkgdir}/usr/bin/${_srcname}"
+}
+
