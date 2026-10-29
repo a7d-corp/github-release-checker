@@ -7,7 +7,7 @@ on:
 jobs:
   update-pkgbuild:
     name: Update PKGBUILD
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v7
@@ -20,7 +20,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAG: ${{ github.event.release.tag_name }}
         run: |
-          asset_name="github-pr-summarizer-${TAG}-linux-amd64.tar.gz"
+          asset_name="github-release-checker-${TAG}-linux-amd64.tar.gz"
 
           for i in $(seq 1 20); do
             echo "Attempt ${i}/20: downloading ${asset_name}..."
@@ -49,7 +49,7 @@ jobs:
           SHA256: ${{ steps.asset.outputs.sha256 }}
         run: |
           version="${TAG#v}"
-          pkgbuild="dist/arch/PKGBUILD"
+          pkgbuild="dist/linux/arch/PKGBUILD"
           sed -i "s/^pkgver=.*/pkgver=${version}/" "${pkgbuild}"
           sed -i "s/^pkgrel=.*/pkgrel=1/" "${pkgbuild}"
           sed -i "s/^sha256sums=.*/sha256sums=('${SHA256}')/" "${pkgbuild}"
@@ -67,7 +67,7 @@ jobs:
           git config --local user.email "${{ secrets.GH_EMAIL }}"
           git config --local user.name "${{ secrets.GH_USER }}"
           git checkout -b "${branch}"
-          git add dist/arch/PKGBUILD
+          git add dist/linux/arch/PKGBUILD
           git commit -m "Update PKGBUILD for ${TAG}"
           git push "${REMOTE_REPO}" HEAD:"${branch}"
           gh pr create \
