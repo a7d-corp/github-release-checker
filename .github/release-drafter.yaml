@@ -1,0 +1,46 @@
+name-template: 'v$RESOLVED_VERSION'
+tag-template: 'v$RESOLVED_VERSION'
+categories:
+  - title: '🚀 Features'
+    semver-increment: 'minor'
+    when:
+      - conventional:
+          type: 'feat'
+      - labels:
+          - 'feature'
+          - 'enhancement'
+  - title: '🐛 Bug Fixes'
+    when:
+      - conventional:
+          type: 'fix'
+      - labels:
+          - 'fix'
+          - 'bugfix'
+          - 'bug'
+  - title: '🧰 Maintenance'
+    when:
+      - conventional:
+          types:
+            - 'chore'
+            - 'ci'
+            - 'docs'
+            - 'refactor'
+            - 'test'
+            - 'perf'
+            - 'build'
+            - 'style'
+            - 'revert'
+      - label: 'chore'
+  - type: 'version-resolver'
+    semver-increment: 'major'
+    when:
+      conventional:
+        breaking: true
+  - type: 'version-resolver'
+    semver-increment: 'patch'
+change-template: '- $TITLE @$AUTHOR (#$NUMBER)'
+change-title-escapes: '\<*_&' # You can add # and @ to disable mentions, and add ` to disable code blocks.
+template: |
+  ## Changes
+
+  $CHANGES
