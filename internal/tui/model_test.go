@@ -57,10 +57,11 @@ func TestResultUpdatesCorrectRow(t *testing.T) {
 		Tag:          "v1.2.3",
 		PublishedAt:  time.Date(2026, 9, 1, 10, 0, 0, 0, time.UTC),
 		CommitsSince: 7,
+		AutoRelease:  true,
 	}})
 
 	rows := m.table.Rows()
-	want := []string{"acme/beta", "v1.2.3", "2026-09-01", "7"}
+	want := []string{"acme/beta", "v1.2.3", "2026-09-01", "7", "automatic"}
 	for i := range want {
 		if rows[0][i] != want[i] {
 			t.Errorf("row 0 col %d: got %q, want %q", i, rows[0][i], want[i])
@@ -109,7 +110,7 @@ func TestNoReleaseRow(t *testing.T) {
 
 	m, _ = update(t, m, resultMsg{gen: m.gen, result: github.Result{Repo: repoA, NoRelease: true}})
 
-	want := []string{"acme/alpha", "none", "none", "-"}
+	want := []string{"acme/alpha", "none", "none", "-", "manual"}
 	for i := range want {
 		if got := m.table.Rows()[0][i]; got != want[i] {
 			t.Errorf("col %d: got %q, want %q", i, got, want[i])

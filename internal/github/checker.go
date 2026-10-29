@@ -1,5 +1,6 @@
-// Package github finds the latest release of a repository and counts the
-// commits on its default branch since that release.
+// Package github finds the latest release of a repository, counts the
+// commits on its default branch since that release, and finds whether the
+// release process is automatic.
 package github
 
 import (
@@ -14,7 +15,12 @@ import (
 	"github.com/a7d-corp/github-release-checker/internal/config"
 )
 
-const requestTimeout = 30 * time.Second
+const (
+	requestTimeout = 30 * time.Second
+	// autoReleaseWorkflow is the workflow file that makes the release
+	// process of a repository automatic.
+	autoReleaseWorkflow = ".github/workflows/zz_generated.auto_release.yaml"
+)
 
 // Result is the release status of one repository.
 type Result struct {
@@ -23,6 +29,7 @@ type Result struct {
 	PublishedAt  time.Time
 	CommitsSince int
 	NoRelease    bool
+	AutoRelease  bool
 	Err          error
 }
 
@@ -59,9 +66,16 @@ func (c *Checker) Check(ctx context.Context, repo config.Repo) Result {
 		return result
 	}
 
+	opts := &gh.RepositoryContentGetOptions{Ref: r.GetDefaultBranch()}
+	_, _, _, err = c.client.Repositories.GetContents(ctx, repo.Owner, repo.Name, autoReleaseWorkflow, opts)
+	if err != nil && !isNotFound(err) {
+		result.Err = fmt.Errorf("get %s: %w", autoReleaseWorkflow, err)
+		return result
+	}
+	result.AutoRelease = err == nil
+
 	release, _, err := c.client.Repositories.GetLatestRelease(ctx, repo.Owner, repo.Name)
-	var errResp *gh.ErrorResponse
-	if errors.As(err, &errResp) && errResp.Response != nil && errResp.Response.StatusCode == http.StatusNotFound {
+	if isNotFound(err) {
 		result.NoRelease = true
 		return result
 	}
@@ -80,4 +94,9 @@ func (c *Checker) Check(ctx context.Context, repo config.Repo) Result {
 	result.CommitsSince = comparison.GetAheadBy()
 
 	return result
+}
+
+func isNotFound(err error) bool {
+	var errResp *gh.ErrorResponse
+	return errors.As(err, &errResp) && errResp.Response != nil && errResp.Response.StatusCode == http.StatusNotFound
 }
