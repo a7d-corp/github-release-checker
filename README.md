@@ -40,6 +40,7 @@ The table has these columns:
 | Release tag   | The tag of the latest release. Drafts and pre-releases are not included. |
 | Release date  | The publish date of the latest release.                   |
 | Commits since | The number of commits on the default branch since the release. |
+| Release process | `automatic` if `.github/workflows/zz_generated.auto_release.yaml` is on the default branch. Otherwise `manual`. |
 
 The repository with the most commits since its release is at the top. Rows without a commit count go last.
 

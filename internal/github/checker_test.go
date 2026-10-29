@@ -58,6 +58,35 @@ func TestCheckWithRelease(t *testing.T) {
 	if got.CommitsSince != 7 {
 		t.Errorf("CommitsSince: got %d, want 7", got.CommitsSince)
 	}
+	if got.AutoRelease {
+		t.Error("AutoRelease: got true, want false")
+	}
+}
+
+func TestCheckAutoRelease(t *testing.T) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("GET /repos/acme/widget", repoHandler)
+	mux.HandleFunc("GET /repos/acme/widget/contents/.github/workflows/zz_generated.auto_release.yaml", func(w http.ResponseWriter, r *http.Request) {
+		if ref := r.URL.Query().Get("ref"); ref != "main" {
+			t.Errorf("ref: got %q, want main", ref)
+		}
+		_, _ = w.Write([]byte(`{"type":"file","name":"zz_generated.auto_release.yaml"}`))
+	})
+	mux.HandleFunc("GET /repos/acme/widget/releases/latest", func(w http.ResponseWriter, _ *http.Request) {
+		http.Error(w, `{"message":"Not Found"}`, http.StatusNotFound)
+	})
+
+	got := newTestChecker(t, mux).Check(context.Background(), repo)
+
+	if got.Err != nil {
+		t.Fatalf("unexpected error: %v", got.Err)
+	}
+	if !got.AutoRelease {
+		t.Error("AutoRelease: got false, want true")
+	}
+	if !got.NoRelease {
+		t.Error("NoRelease: got false, want true")
+	}
 }
 
 func TestCheckNoRelease(t *testing.T) {
@@ -88,6 +117,10 @@ func TestCheckErrors(t *testing.T) {
 	tests := map[string]func(*http.ServeMux){
 		"repo fails": func(mux *http.ServeMux) {
 			mux.HandleFunc("GET /repos/acme/widget", fail)
+		},
+		"workflow lookup fails": func(mux *http.ServeMux) {
+			mux.HandleFunc("GET /repos/acme/widget", repoHandler)
+			mux.HandleFunc("GET /repos/acme/widget/contents/.github/workflows/zz_generated.auto_release.yaml", fail)
 		},
 		"release fails": func(mux *http.ServeMux) {
 			mux.HandleFunc("GET /repos/acme/widget", repoHandler)

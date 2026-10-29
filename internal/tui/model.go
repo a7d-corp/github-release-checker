@@ -67,6 +67,7 @@ func New(repos []config.Repo, check CheckFunc) Model {
 			{Title: "Release tag", Width: 16},
 			{Title: "Release date", Width: 12},
 			{Title: "Commits since", Width: 13},
+			{Title: "Release process", Width: 15},
 		}),
 		table.WithFocused(true),
 		table.WithHeight(len(repos)+headerHeight),
@@ -197,19 +198,28 @@ func (m Model) rows() []table.Row {
 		res, ok := m.results[r]
 		switch {
 		case !ok:
-			rows = append(rows, table.Row{r.String(), "loading…", "", ""})
+			rows = append(rows, table.Row{r.String(), "loading…", "", "", ""})
 		case res.Err != nil:
-			rows = append(rows, table.Row{r.String(), "error", "", ""})
+			rows = append(rows, table.Row{r.String(), "error", "", "", ""})
 		case res.NoRelease:
-			rows = append(rows, table.Row{r.String(), "none", "none", "-"})
+			rows = append(rows, table.Row{r.String(), "none", "none", "-", releaseProcess(res)})
 		default:
 			rows = append(rows, table.Row{
 				r.String(),
 				res.Tag,
 				res.PublishedAt.Format(dateFormat),
 				strconv.Itoa(res.CommitsSince),
+				releaseProcess(res),
 			})
 		}
 	}
 	return rows
+}
+
+// releaseProcess returns "automatic" or "manual" for the release process of res.
+func releaseProcess(res github.Result) string {
+	if res.AutoRelease {
+		return "auto-release"
+	}
+	return "manual"
 }
