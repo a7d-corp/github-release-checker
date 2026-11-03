@@ -11,6 +11,7 @@ url="https://github.com/a7d-corp/${_srcname}"
 license=('apache')
 source=("${_srcname}-v${pkgver}.tar.gz::${url}/releases/download/v${pkgver}/${_srcname}-v${pkgver}-linux-amd64.tar.gz")
 sha256sums=('e1fa0493793d1b7098ce41118d54c88c53ef12296864bb420c18c5ff2a8713d6')
+options=('!debug')
 
 package() {
     cd ${srcdir}
