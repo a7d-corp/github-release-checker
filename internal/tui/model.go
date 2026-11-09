@@ -6,6 +6,8 @@ import (
 	"context"
 	"fmt"
 	"maps"
+	"os/exec"
+	"runtime"
 	"slices"
 	"strconv"
 	"strings"
@@ -37,6 +39,27 @@ var (
 // CheckFunc returns the release status of one repository.
 type CheckFunc func(context.Context, config.Repo) github.Result
 
+// openURL opens a URL in the browser. Tests replace it.
+var openURL = defaultOpenURL
+
+// defaultOpenURL starts the platform command that opens url in the browser.
+func defaultOpenURL(url string) error {
+	switch runtime.GOOS {
+	case "darwin":
+		return exec.Command("open", url).Start()
+	case "windows":
+		return exec.Command("rundll32", "url.dll,FileProtocolHandler", url).Start()
+	default:
+		return exec.Command("xdg-open", url).Start()
+	}
+}
+
+// openErrMsg carries an error from openURL.
+type openErrMsg struct {
+	repo config.Repo
+	err  error
+}
+
 // resultMsg carries a check result. gen identifies the refresh that started
 // the check, so the model can drop results from an earlier refresh.
 type resultMsg struct {
@@ -52,6 +75,7 @@ type Model struct {
 	gen     int
 	table   table.Model
 	spinner spinner.Model
+	openErr *openErrMsg
 }
 
 // New returns a Model for repos. check runs once for each repository.
@@ -101,7 +125,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.results = map[config.Repo]github.Result{}
 			m.table.SetRows(m.rows())
 			return m, m.checkAll()
+		case "enter":
+			return m, openCmd(m.sortedRepos()[m.table.Cursor()])
 		}
+	case openErrMsg:
+		m.openErr = &msg
+		return m, nil
 	case tea.WindowSizeMsg:
 		m.table.SetHeight(max(headerHeight+1, min(len(m.repos)+headerHeight, msg.Height-chromeHeight)))
 		return m, nil
@@ -144,7 +173,12 @@ func (m Model) View() string {
 		}
 	}
 
-	b.WriteString(helpStyle.Render("↑/↓ scroll • r refresh • q quit"))
+	if m.openErr != nil {
+		b.WriteString(errorStyle.Render(fmt.Sprintf("open %s: %v", m.openErr.repo, m.openErr.err)))
+		b.WriteString("\n")
+	}
+
+	b.WriteString(helpStyle.Render("↑/↓ scroll • enter open in browser • r refresh • q quit"))
 	b.WriteString("\n")
 	return b.String()
 }
@@ -161,6 +195,16 @@ func (m Model) checkCmd(r config.Repo) tea.Cmd {
 	gen, check := m.gen, m.check
 	return func() tea.Msg {
 		return resultMsg{gen: gen, result: check(context.Background(), r)}
+	}
+}
+
+// openCmd opens the GitHub page of r in the browser.
+func openCmd(r config.Repo) tea.Cmd {
+	return func() tea.Msg {
+		if err := openURL("https://github.com/" + r.String()); err != nil {
+			return openErrMsg{repo: r, err: err}
+		}
+		return nil
 	}
 }
 
@@ -216,7 +260,7 @@ func (m Model) rows() []table.Row {
 	return rows
 }
 
-// releaseProcess returns "automatic" or "manual" for the release process of res.
+// releaseProcess returns "auto-release" or "manual" for the release process of res.
 func releaseProcess(res github.Result) string {
 	if res.AutoRelease {
 		return "auto-release"
