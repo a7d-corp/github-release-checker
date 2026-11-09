@@ -3,6 +3,7 @@ package tui
 import (
 	"context"
 	"errors"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -61,7 +62,7 @@ func TestResultUpdatesCorrectRow(t *testing.T) {
 	}})
 
 	rows := m.table.Rows()
-	want := []string{"acme/beta", "v1.2.3", "2026-09-01", "7", "automatic"}
+	want := []string{"acme/beta", "v1.2.3", "2026-09-01", "7", "auto-release"}
 	for i := range want {
 		if rows[0][i] != want[i] {
 			t.Errorf("row 0 col %d: got %q, want %q", i, rows[0][i], want[i])
@@ -173,6 +174,46 @@ func TestQuitKeys(t *testing.T) {
 		if _, ok := cmd().(tea.QuitMsg); !ok {
 			t.Errorf("%s: command does not quit", key)
 		}
+	}
+}
+
+func TestEnterOpensHighlightedRepo(t *testing.T) {
+	var opened []string
+	openURL = func(url string) error {
+		opened = append(opened, url)
+		return nil
+	}
+	t.Cleanup(func() { openURL = defaultOpenURL })
+
+	m := newTestModel()
+	enter := tea.KeyMsg{Type: tea.KeyEnter}
+
+	_, cmd := update(t, m, enter)
+	if cmd == nil {
+		t.Fatal("enter returned no command")
+	}
+	cmd()
+
+	m, _ = update(t, m, tea.KeyMsg{Type: tea.KeyDown})
+	_, cmd = update(t, m, enter)
+	cmd()
+
+	want := []string{"https://github.com/acme/alpha", "https://github.com/acme/beta"}
+	if !slices.Equal(opened, want) {
+		t.Errorf("opened %v, want %v", opened, want)
+	}
+}
+
+func TestOpenErrorShown(t *testing.T) {
+	openURL = func(string) error { return errors.New("no browser") }
+	t.Cleanup(func() { openURL = defaultOpenURL })
+
+	m := newTestModel()
+	_, cmd := update(t, m, tea.KeyMsg{Type: tea.KeyEnter})
+	m, _ = update(t, m, cmd())
+
+	if !strings.Contains(m.View(), "open acme/alpha: no browser") {
+		t.Errorf("view does not show the open error:\n%s", m.View())
 	}
 }
 
